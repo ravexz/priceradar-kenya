@@ -1,0 +1,440 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  CUSTOMER
+  MERCHANT
+  MERCHANT_ADMIN
+  STAFF
+  CONTENT_EDITOR
+  MODERATOR
+  ANALYST
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  PENDING_REVIEW
+  VERIFIED
+  SUSPENDED
+  REJECTED
+}
+
+enum StockStatus {
+  IN_STOCK
+  LOW_STOCK
+  OUT_OF_STOCK
+  PRE_ORDER
+  DISCONTINUED
+  UNKNOWN
+}
+
+enum ProductCondition {
+  NEW
+  REFURBISHED
+  USED
+}
+
+enum FreshnessState {
+  FRESH
+  AGING
+  STALE
+  UNKNOWN
+}
+
+enum AttributeType {
+  STRING
+  NUMBER
+  BOOLEAN
+  ENUM
+}
+
+enum IdentifierType {
+  GTIN
+  EAN
+  UPC
+  MPN
+  SKU
+}
+
+enum AlertStatus {
+  ACTIVE
+  TRIGGERED
+  PAUSED
+  CANCELLED
+}
+
+enum ImportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum MatchStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum TargetType {
+  PRODUCT
+  MERCHANT
+}
+
+model User {
+  id            String       @id @default(uuid())
+  email         String       @unique
+  passwordHash  String
+  name          String
+  role          Role         @default(CUSTOMER)
+  emailVerified Boolean      @default(false)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  priceAlerts   PriceAlert[]
+  reviews       Review[]
+  merchant      Merchant?    @relation("MerchantOwner")
+  auditLogs     AuditLog[]   @relation("ActorAuditLogs")
+
+  @@index([email])
+}
+
+model Merchant {
+  id                 String             @id @default(uuid())
+  ownerId            String             @unique
+  owner              User               @relation("MerchantOwner", fields: [ownerId], references: [id])
+  name               String
+  slug               String             @unique
+  businessRegNo      String?
+  taxId              String?
+  email              String
+  phone              String
+  physicalAddress    String
+  county             String             @default("Nairobi")
+  city               String             @default("Nairobi")
+  latitude           Float?
+  longitude          Float?
+  websiteUrl         String
+  verificationStatus VerificationStatus @default(UNVERIFIED)
+  trustScore         Int                @default(50) // 0-100 score
+  returnPolicy       String?
+  warrantyPolicy     String?
+  isDemo             Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  offers             Offer[]
+  verificationDocs   MerchantVerificationDoc[]
+  importJobs         ImportJob[]
+  adCampaigns        AdCampaign[]
+  outboundClicks     OutboundClick[]
+
+  @@index([slug])
+  @@index([verificationStatus])
+}
+
+model MerchantVerificationDoc {
+  id            String    @id @default(uuid())
+  merchantId    String
+  merchant      Merchant  @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  docType       String
+  docUrl        String
+  status        String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  reviewerNotes String?
+  createdAt     DateTime  @default(now())
+}
+
+model Category {
+  id          String              @id @default(uuid())
+  name        String
+  slug        String              @unique
+  description String?
+  icon        String?
+  parentId    String?
+  parent      Category?           @relation("CategoryParent", fields: [parentId], references: [id])
+  children    Category[]          @relation("CategoryParent")
+  createdAt   DateTime            @default(now())
+
+  products    Product[]
+  attributes  CategoryAttribute[]
+
+  @@index([slug])
+}
+
+model Brand {
+  id         String    @id @default(uuid())
+  name       String    @unique
+  slug       String    @unique
+  logoUrl    String?
+  country    String?
+  websiteUrl String?
+  createdAt  DateTime  @default(now())
+
+  products   Product[]
+
+  @@index([slug])
+}
+
+model Attribute {
+  id            String              @id @default(uuid())
+  name          String
+  slug          String              @unique
+  dataType      AttributeType       @default(STRING)
+  unit          String?
+  isFilterable  Boolean             @default(true)
+  isComparable  Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+
+  categories    CategoryAttribute[]
+  productValues ProductAttributeValue[]
+
+  @@index([slug])
+}
+
+model CategoryAttribute {
+  categoryId  String
+  attributeId String
+  isRequired  Boolean   @default(false)
+  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  attribute   Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+
+  @@id([categoryId, attributeId])
+}
+
+model Product {
+  id           String     @id @default(uuid())
+  name         String
+  slug         String     @unique
+  brandId      String
+  brand        Brand      @relation(fields: [brandId], references: [id])
+  categoryId   String
+  category     Category   @relation(fields: [categoryId], references: [id])
+  modelNumber  String?
+  description  String
+  mainImageUrl String
+  images       String[]   @default([])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  variants     Variant[]
+
+  @@index([slug])
+  @@index([brandId])
+  @@index([categoryId])
+}
+
+model Variant {
+  id           String                  @id @default(uuid())
+  productId    String
+  product      Product                 @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name         String
+  slug         String                  @unique
+  isDefault    Boolean                 @default(false)
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+
+  identifiers  ProductIdentifier[]
+  attributes   ProductAttributeValue[]
+  offers       Offer[]
+  priceAlerts  PriceAlert[]
+  matchQueues  ProductMatchQueue[]
+
+  @@index([slug])
+  @@index([productId])
+}
+
+model ProductIdentifier {
+  id        String         @id @default(uuid())
+  variantId String
+  variant   Variant        @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  type      IdentifierType
+  value     String
+
+  @@unique([type, value])
+  @@index([value])
+}
+
+model ProductAttributeValue {
+  id           String    @id @default(uuid())
+  variantId    String
+  variant      Variant   @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  attributeId  String
+  attribute    Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  valueString  String?
+  valueNumber  Float?
+  valueBoolean Boolean?
+  unit         String?
+
+  @@index([variantId])
+  @@index([attributeId])
+}
+
+model Offer {
+  id              String           @id @default(uuid())
+  variantId       String
+  variant         Variant          @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  merchantId      String
+  merchant        Merchant         @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  merchantSku     String
+  title           String
+  url             String
+  priceKes        Float
+  originalPriceKes Float?
+  deliveryFeeKes  Float?
+  totalCostKes    Float
+  isDeliveryFree  Boolean          @default(false)
+  stockStatus     StockStatus      @default(IN_STOCK)
+  condition       ProductCondition @default(NEW)
+  warrantyMonths  Int?             @default(12)
+  warrantyText    String?
+  lastCheckedAt   DateTime         @default(now())
+  freshnessState  FreshnessState   @default(FRESH)
+  isSponsored     Boolean          @default(false)
+  isAnomaly       Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  priceHistory    PriceHistory[]
+  outboundClicks  OutboundClick[]
+
+  @@index([variantId])
+  @@index([merchantId])
+  @@index([priceKes])
+  @@index([totalCostKes])
+}
+
+model PriceHistory {
+  id             String      @id @default(uuid())
+  offerId        String
+  offer          Offer       @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  priceKes       Float
+  deliveryFeeKes Float?
+  totalCostKes   Float
+  stockStatus    StockStatus
+  recordedAt     DateTime    @default(now())
+
+  @@index([offerId])
+  @@index([recordedAt])
+}
+
+model PriceAlert {
+  id             String      @id @default(uuid())
+  userId         String
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  variantId      String
+  variant        Variant     @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  targetPriceKes Float
+  status         AlertStatus @default(ACTIVE)
+  triggeredAt    DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([variantId])
+  @@index([status])
+}
+
+model OutboundClick {
+  id          String   @id @default(uuid())
+  offerId     String
+  offer       Offer    @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  merchantId  String
+  merchant    Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  variantId   String
+  userId      String?
+  sessionIp   String?
+  userAgent   String?
+  referrer    String?
+  clickTime   DateTime @default(now())
+
+  @@index([merchantId])
+  @@index([offerId])
+  @@index([clickTime])
+}
+
+model ImportJob {
+  id            String       @id @default(uuid())
+  merchantId    String
+  merchant      Merchant     @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  fileType      String       // CSV, JSON, XML
+  fileName      String
+  status        ImportStatus @default(PENDING)
+  totalRows     Int          @default(0)
+  processedRows Int          @default(0)
+  errorLog      String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([merchantId])
+}
+
+model ProductMatchQueue {
+  id                 String      @id @default(uuid())
+  rawOfferTitle      String
+  rawMerchantSku     String?
+  brandName          String?
+  candidateVariantId String?
+  candidateVariant   Variant?    @relation(fields: [candidateVariantId], references: [id])
+  confidenceScore    Float       // 0.0 to 1.0
+  matchLevel         Int         // 1 to 5
+  status             MatchStatus @default(PENDING)
+  notes              String?
+  createdAt          DateTime    @default(now())
+
+  @@index([status])
+  @@index([confidenceScore])
+}
+
+model Review {
+  id                 String     @id @default(uuid())
+  userId             String
+  user               User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetType         TargetType
+  targetId           String
+  rating             Int        // 1 to 5
+  title              String
+  comment            String
+  isVerifiedPurchase Boolean    @default(false)
+  isApproved         Boolean    @default(true)
+  createdAt          DateTime   @default(now())
+
+  @@index([targetType, targetId])
+  @@index([userId])
+}
+
+model AdCampaign {
+  id          String   @id @default(uuid())
+  merchantId  String
+  merchant    Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  name        String
+  placement   String   // SPONSORED_PRODUCT, SPONSORED_MERCHANT, HOMEPAGE_PROMOTION
+  budgetKes   Float
+  spentKes    Float    @default(0)
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+
+  @@index([merchantId])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorId     String
+  actor       User     @relation("ActorAuditLogs", fields: [actorId], references: [id])
+  action      String
+  entityType  String
+  entityId    String
+  diffJson    String?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+}

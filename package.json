@@ -11,7 +11,7 @@
     "db:push": "prisma db push",
     "db:seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts",
     "test:unit": "jest --config jest.config.js",
-    "test:integration": "jest --config jest.integration.config.js"
+    "test:integration": "jest --config jest.config.js"
   },
   "dependencies": {
     "@prisma/client": "^5.19.0",

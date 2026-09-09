@@ -101,6 +101,8 @@ export class SearchService {
       });
 
       return {
+        id: v.id,
+        name: `${v.product.name} (${v.name})`,
         variantId: v.id,
         productId: v.product.id,
         productName: v.product.name,
@@ -142,14 +144,19 @@ export class SearchService {
     const total = results.length;
     const paginated = results.slice(skip, skip + limit);
 
-    return {
-      items: paginated,
-      data: paginated,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
+    return JSON.parse(
+      JSON.stringify(
+        {
+          items: paginated,
+          data: paginated,
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+        (key, value) => (typeof value === 'bigint' ? value.toString() : value)
+      )
+    );
     } catch (err: any) {
       console.warn('SearchService DB Query Fallback:', err.message);
       return {

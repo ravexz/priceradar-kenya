@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/db/prisma';
+import { prisma } from '../db/prisma';
 
 export interface AIRecommendationRequest {
   prompt: string;

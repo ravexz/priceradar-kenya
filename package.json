@@ -28,6 +28,9 @@
     "recharts": "^2.12.7",
     "tailwind-merge": "^2.5.2"
   },
+  "prisma": {
+    "seed": "npx ts-node prisma/seed.ts"
+  },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.19",

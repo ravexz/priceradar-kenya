@@ -50,7 +50,7 @@ services:
       redis:
         condition: service_healthy
     command: >
-      sh -c "npx prisma db push && npx prisma db seed && npx ts-node src/server.ts"
+      sh -c "npx prisma db push && npx ts-node -r tsconfig-paths/register -O '{\"module\":\"CommonJS\"}' prisma/seed.ts && npx ts-node -r tsconfig-paths/register -O '{\"module\":\"CommonJS\"}' src/server.ts"
 
   worker:
     build:
@@ -69,7 +69,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: ["npx", "ts-node", "src/worker.ts"]
+    command: ["npx", "ts-node", "-r", "tsconfig-paths/register", "-O", "{\"module\":\"CommonJS\"}", "src/worker.ts"]
 
   frontend:
     build:

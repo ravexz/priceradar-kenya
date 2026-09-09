@@ -1,4 +1,4 @@
-import { prisma } from '../db/prisma';
+import { prisma } from '@/lib/db/prisma';
 
 export interface SearchOptions {
   query?: string;
@@ -18,7 +18,8 @@ export class SearchService {
    * Search canonical products & variants with dynamic filtering and sorting.
    */
   static async searchProducts(options: SearchOptions) {
-    const {
+    try {
+      const {
       query = '',
       categorySlug,
       brandSlug,
@@ -141,13 +142,16 @@ export class SearchService {
     const total = results.length;
     const paginated = results.slice(skip, skip + limit);
 
-    return {
-      items: paginated,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
+    } catch (err: any) {
+      console.warn('SearchService DB Query Fallback:', err.message);
+      return {
+        items: [],
+        total: 0,
+        page: options.page || 1,
+        limit: options.limit || 12,
+        totalPages: 0,
+      };
+    }
   }
 
   /**

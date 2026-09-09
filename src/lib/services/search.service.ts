@@ -88,10 +88,22 @@ export class SearchService {
 
     // Process offers, price filter & sorting
     let results = variants.map((v) => {
-      const activeOffers = v.offers.filter((o) => o.stockStatus !== 'OUT_OF_STOCK');
-      const lowestOffer = activeOffers[0] || v.offers[0];
+      // Deduplicate offers from same merchant with same price and title
+      const uniqueOffersMap = new Map<string, typeof v.offers[0]>();
+      for (const o of v.offers) {
+        const key = `${o.merchantId}_${o.priceKes}_${(o.title || '').trim().toLowerCase()}`;
+        if (!uniqueOffersMap.has(key)) {
+          uniqueOffersMap.set(key, o);
+        }
+      }
+      const deduplicatedOffers = Array.from(uniqueOffersMap.values());
+
+      const activeOffers = deduplicatedOffers.filter((o) => o.stockStatus !== 'OUT_OF_STOCK');
+      const lowestOffer = activeOffers[0] || deduplicatedOffers[0];
       const lowestPrice = lowestOffer ? lowestOffer.priceKes : 0;
-      const sellersCount = v.offers.length;
+      
+      // Count distinct merchants selling this variant
+      const sellersCount = new Set(deduplicatedOffers.map((o) => o.merchantId)).size;
 
       // Extract specs
       const specsMap: Record<string, string> = {};

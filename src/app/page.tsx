@@ -137,7 +137,7 @@ export default function HomePage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {trendingProducts.map((product) => (
-              <ProductCard key={product.productId} {...product} />
+              <ProductCard key={product.id || product.productId || product.slug} {...product} />
             ))}
           </div>
         )}

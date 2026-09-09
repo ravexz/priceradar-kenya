@@ -5,7 +5,11 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Starting PriceRadar Kenya database seed...');
 
-  // 1. Create Users (Admin, Demo Merchants, Demo Customer)
+  // Clean existing offers & history to prevent duplication on seed re-runs
+  await prisma.priceHistory.deleteMany();
+  await prisma.priceAlert.deleteMany();
+  await prisma.offer.deleteMany();
+
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@priceradar.co.ke' },
     update: {},

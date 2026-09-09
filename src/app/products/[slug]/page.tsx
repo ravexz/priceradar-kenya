@@ -72,7 +72,17 @@ export default function ProductDetailPage() {
     );
   }
 
-  const { product, activeVariant, offers = [], priceSummary = {} } = data;
+  const { product, activeVariant, priceSummary = {} } = data;
+
+  // Deduplicate offers from same shop with same price and title
+  const offersMap = new Map<string, any>();
+  (data.offers || []).forEach((offer: any) => {
+    const key = `${offer.merchantId}_${offer.priceKes}_${(offer.title || offer.merchantName || '').trim().toLowerCase()}`;
+    if (!offersMap.has(key)) {
+      offersMap.set(key, offer);
+    }
+  });
+  const offers = Array.from(offersMap.values());
   const lowestOffer = offers[0];
 
   return (

@@ -26,12 +26,21 @@ export async function GET(request: Request) {
       limit,
     });
 
-    return NextResponse.json(result);
+    return new Response(JSON.stringify(result), {
+      headers: { 'Content-Type': 'application/json' },
+    });
   } catch (error: any) {
     console.error('API Products GET Error:', error);
-    return NextResponse.json(
-      { error: { code: 'INTERNAL_ERROR', message: error.message || 'Failed to fetch products' } },
-      { status: 500 }
-    );
+    const errBody = JSON.stringify({
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: error?.message || String(error),
+        stack: error?.stack || null,
+      },
+    });
+    return new Response(errBody, {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }

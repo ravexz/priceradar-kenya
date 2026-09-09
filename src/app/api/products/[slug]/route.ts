@@ -56,7 +56,7 @@ export async function GET(request: Request, { params }: { params: { slug: string
     }
 
     // Format offers with Seller Trust Scores & Total Cost calculations
-    const formattedOffers = activeVariant.offers.map((offer) => {
+    const rawOffers = activeVariant.offers.map((offer) => {
       const trustBreakdown = calculateSellerTrustScore(offer.merchant);
       return {
         id: offer.id,
@@ -64,6 +64,7 @@ export async function GET(request: Request, { params }: { params: { slug: string
         merchantName: offer.merchant.name,
         merchantSlug: offer.merchant.slug,
         merchantLogo: null,
+        title: offer.title,
         trustScore: trustBreakdown.score,
         trustBadges: trustBreakdown.badges,
         priceKes: offer.priceKes,
@@ -80,6 +81,16 @@ export async function GET(request: Request, { params }: { params: { slug: string
         freshnessState: offer.freshnessState,
       };
     });
+
+    // Deduplicate duplicate items from same shop with same price & title
+    const uniqueOffersMap = new Map<string, typeof rawOffers[0]>();
+    for (const offer of rawOffers) {
+      const key = `${offer.merchantId}_${offer.priceKes}_${(offer.title || '').trim().toLowerCase()}`;
+      if (!uniqueOffersMap.has(key)) {
+        uniqueOffersMap.set(key, offer);
+      }
+    }
+    const formattedOffers = Array.from(uniqueOffersMap.values());
 
     // Sort offers considering price + trust + delivery
     formattedOffers.sort((a, b) => {

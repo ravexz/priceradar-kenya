@@ -142,10 +142,19 @@ export class SearchService {
     const total = results.length;
     const paginated = results.slice(skip, skip + limit);
 
+    return {
+      items: paginated,
+      data: paginated,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
     } catch (err: any) {
       console.warn('SearchService DB Query Fallback:', err.message);
       return {
         items: [],
+        data: [],
         total: 0,
         page: options.page || 1,
         limit: options.limit || 12,

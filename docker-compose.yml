@@ -44,13 +44,14 @@ services:
       REDIS_URL: "redis://redis:6379"
       PORT: "4000"
       NODE_ENV: "production"
+      TS_NODE_COMPILER_OPTIONS: '{"module":"CommonJS"}'
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     command: >
-      sh -c "npx prisma db push && npx ts-node -O '{\"module\":\"CommonJS\"}' prisma/seed.ts && npx ts-node -O '{\"module\":\"CommonJS\"}' src/server.ts"
+      sh -c "npx prisma db push && npx ts-node prisma/seed.ts && npx ts-node src/server.ts"
 
   worker:
     build:
@@ -64,12 +65,13 @@ services:
       REDIS_PORT: "6379"
       REDIS_URL: "redis://redis:6379"
       NODE_ENV: "production"
+      TS_NODE_COMPILER_OPTIONS: '{"module":"CommonJS"}'
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: ["npx", "ts-node", "-O", "{\"module\":\"CommonJS\"}", "src/worker.ts"]
+    command: ["npx", "ts-node", "src/worker.ts"]
 
   frontend:
     build:
